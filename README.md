@@ -1,3 +1,4 @@
+
 # LifeLink AI 🚑🤖
 
 **LifeLink AI** is a production-ready, AI-powered emergency healthcare coordination system. Using the **Google Agent Development Kit (ADK)** and the **Model Context Protocol (MCP)**, the system accepts telemetry streams from emergency sensors (wearables, smart devices, etc.), processes clinical data, and coordinates specialized AI agents (Triage, Dispatch, Resource Allocation) to minimize response times.
@@ -117,3 +118,7 @@ To run the automated tests, execute:
 ```bash
 pytest
 ```
+
+# LifeLink-AI
+AI-Powered Emergency Healthcare Coordination System using Google ADK and MCP.
+
