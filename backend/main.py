@@ -5,50 +5,55 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.database import Base, engine
 
+# Import all SQLAlchemy models to register them on Base metadata
+from backend import models
+
+# Import API routers
+from backend.api.auth import router as auth_router
+from backend.api.profile import router as profile_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Asynchronous context manager for FastAPI startup and shutdown events.
-    Useful for initializing databases, creating pools, and starting background processes.
+    App lifespan context manager. 
+    Handles startup events (e.g. creating tables in SQLite) and shutdown.
     """
-    # Startup: Create tables in local development database
-    if settings.APP_ENV == "development":
-        Base.metadata.create_all(bind=engine)
-    
+    # Create SQLite database tables if they do not exist
+    Base.metadata.create_all(bind=engine)
     yield
-    
-    # Shutdown: Clean up connections, close pools, etc.
-    pass
 
 
-# Initialize FastAPI instance
+# Initialize FastAPI application instance
 app = FastAPI(
-    title="LifeLink AI Backend",
+    title="LifeLink AI",
     description="Emergency healthcare coordination system using Google ADK and MCP.",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan
 )
 
-# Enable CORS for frontend Streamlit dashboard or web components
+# CORS configurations
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Set to specific domains in production env
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Register API routers
+app.include_router(auth_router)
+app.include_router(profile_router)
 
-@app.get("/health", tags=["Health Check"])
-async def health_check():
+
+@app.get("/")
+async def root_health_check():
     """
-    Simple API health endpoint confirming app and environment status.
+    Root endpoint returning application name and status.
     """
     return {
-        "status": "healthy",
-        "app": "LifeLink AI",
-        "environment": settings.APP_ENV
+        "application": "LifeLink AI",
+        "status": "running"
     }
 
 

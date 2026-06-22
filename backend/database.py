@@ -4,12 +4,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from backend.config import settings
 
-# Determine database configurations
+# Retrieve database connection string
 DATABASE_URL = settings.DATABASE_URL
 is_sqlite = DATABASE_URL.startswith("sqlite")
 
-# Create SQLAlchemy engine
-# "connect_args={'check_same_thread': False}" is required ONLY for SQLite
+# Configure database engine
+# connect_args={'check_same_thread': False} is required only for SQLite
 connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 engine = create_engine(
@@ -18,25 +18,23 @@ engine = create_engine(
     echo=settings.DEBUG
 )
 
-# Create session factory
+# Session factory for database transactions
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
-# Declarative Base for models
+# Declarative base model class
 Base = declarative_base()
 
 
 def get_db() -> Generator:
     """
-    Dependency injection helper to yield database sessions.
-    Guarantees session closure after HTTP response.
+    Dependency injection generator providing isolated database sessions.
     """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-

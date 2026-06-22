@@ -1,42 +1,33 @@
 import os
-from typing import Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
-class Settings(BaseSettings):
+class Settings:
     """
-    Application configuration settings using pydantic-settings.
-    Loads variables from Environment or .env file.
+    Application settings class loaded using python-dotenv.
     """
-    # Application Config
-    APP_ENV: str = "development"
-    DEBUG: bool = True
-    LOG_LEVEL: str = "INFO"
-
-    # FastAPI Config
-    API_HOST: str = "127.0.0.1"
-    API_PORT: int = 8000
-
-    # Google AI Studio API Key (Gemini)
-    GEMINI_API_KEY: Optional[str] = None
+    # Google API Key for Gemini
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./lifelink.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./lifelink.db")
 
-    # Model Context Protocol Config
-    MCP_SERVER_URL: Optional[str] = "http://localhost:8080"
+    # Security Configuration
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "fallback_secret_key_change_in_production")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-    # Security Settings
-    SECRET_KEY: str = "fallback_secret_key_change_in_production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-
-    # Pydantic Configuration
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    # App environment (helpers)
+    APP_ENV: str = os.getenv("APP_ENV", "development")
+    DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("true", "1", "yes")
+    
+    # Server Binding
+    API_HOST: str = os.getenv("API_HOST", "127.0.0.1")
+    API_PORT: int = int(os.getenv("API_PORT", "8000"))
 
 
-# Instantiate settings for global use in the backend
+# Global settings instance
 settings = Settings()

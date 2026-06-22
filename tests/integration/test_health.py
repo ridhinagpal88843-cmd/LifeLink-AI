@@ -1,10 +1,10 @@
 def test_health_check_endpoint(client):
     """
-    Test that the /health endpoint is operational.
+    Test that the root health check endpoint is operational and returns correct payload.
     """
-    response = client.get("/health")
-    assert response.status_type == 200 or response.status_code == 200
+    response = client.get("/")
+    assert response.status_code == 200
     
     data = response.json()
-    assert data["status"] == "healthy"
-    assert data["app"] == "LifeLink AI"
+    assert data["application"] == "LifeLink AI"
+    assert data["status"] == "running"
