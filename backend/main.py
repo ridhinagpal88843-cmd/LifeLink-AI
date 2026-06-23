@@ -11,6 +11,7 @@ from backend import models
 # Import API routers
 from backend.api.auth import router as auth_router
 from backend.api.profile import router as profile_router
+from backend.api.incident import router as incident_router
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ app.add_middleware(
 # Register API routers
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(incident_router)
 
 
 @app.get("/")

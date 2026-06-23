@@ -23,41 +23,49 @@ LifeLink AI is structured according to Clean Architecture concepts, separating t
        │       │       │       │ Domain  │       │       │       │
        │       │       │       │ (Models)│       │       │       │
        │       │       │       └─────────┘       │       │       │
-       │       │       └─────────────────────────┘       │       │
        │       └─────────────────────────────────────────┘       │
        └─────────────────────────────────────────────────────────┘
 ```
 
-1. **Domain Layer (`backend/models/`)**: Specifies core business entities (`Alert`, `Patient`, `Hospital`, `Ambulance`) completely decoupled from database engine drivers or web interfaces.
-2. **Application Layer (`backend/services/`, `backend/agents/`)**: Core application logic. Contains the AI Agents defined using the Google Agent Development Kit (ADK).
+1. **Domain Layer (`backend/models/`)**: Specifies core business entities (`User`, `EmergencyHealthProfile`, `Doctor`, `EmergencyContact`, `EmergencyIncident`) completely decoupled from database engine drivers or web interfaces.
+2. **Application Layer (`backend/services/`, `backend/orchestrator/`)**: Core application logic. Contains the AI Agents defined using the Google Agent Development Kit (ADK) and the `EmergencyWorkflowManager`.
 3. **Interface Adapters (`backend/api/`, `backend/mcp/`)**: Bridges controllers and endpoints. Receives web traffic, parses schemas via Pydantic, and handles Model Context Protocol (MCP) data tool mappings.
 4. **Infrastructure Layer (`backend/database/`, `backend/config/`)**: Database engines, configurations, migrations, external server bindings.
 
 ---
 
-## AI Multi-Agent & MCP Data Flow
+## 🚦 Parallel Incident Orchestration Pipeline
 
-Below is the telemetry triage & dispatch flow diagram:
+When an emergency telemetry event is ingested, the system assesses the vitals using the Triage Agent. If the assessment yields a **confidence score >= 0.8** and classifies the event as **critical**, the orchestrator initiates a parallel dispatch workflow to bypass sequential blockages.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Telemetry as Telemetry Simulator
-    participant API as FastAPI Router (/telemetry)
-    participant Orch as Orchestrator Service
+    participant Telemetry as Telemetry Stream
+    participant API as FastAPI Router
+    participant Orch as EmergencyWorkflowManager
     participant Triage as Triage Agent (ADK)
-    participant MCP as MCP Tools Server
-    participant Dispatch as Dispatch Agent (ADK)
-
-    Telemetry->>API: Post telemetry vitals (Heart rate, GPS)
-    API->>Orch: Dispatch alert workflow
-    Orch->>Triage: Assess vitals severity
-    Triage-->>Orch: returns severity level (e.g. Critical)
-    Orch->>MCP: Query closest available ICU beds
-    MCP-->>Orch: returns closest hospitals list
-    Orch->>Dispatch: Determine best routing and ETA
-    Dispatch-->>Orch: returns selected vehicle & route
-    Orch->>API: Return response state
+    
+    Telemetry->>API: POST /telemetry (Ingest Sensor Data)
+    API->>Orch: trigger_emergency_workflow()
+    Orch->>Triage: Assess Vitals & Confidence Score
+    Triage-->>Orch: returns Critical (Confidence: 95%)
+    
+    Note over Orch: High Confidence Triggered: Launching Parallel Actions
+    
+    par Parallel Executions
+        Orch->>Orch: Dispatch Ambulance (Ambulance #4)
+    and
+        Orch->>Orch: Outbound call to Primary Doctor (TTS Patient Info)
+    and
+        Orch->>Orch: Outbound calls to Emergency Contacts (TTS Status/ETA)
+    and
+        Orch->>Orch: Share Patient's Live Location Coordinate Stream
+    and
+        Orch->>Orch: Log Action Audits to AuditLogs DB
+    end
+    
+    Orch-->>API: Returns completed EmergencyIncident response
     API-->>Telemetry: HTTP 200 (Success Dispatch)
 ```
 
