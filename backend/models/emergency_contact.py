@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship as orm_relationship
 
 from backend.database import Base
 
@@ -27,4 +27,4 @@ class EmergencyContact(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, server_default=func.now())
 
     # Relationships
-    user = relationship("User", back_populates="emergency_contacts")
+    user = orm_relationship("User", back_populates="emergency_contacts")
