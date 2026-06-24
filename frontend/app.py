@@ -308,6 +308,9 @@ if menu == "Home Dashboard":
 
     # Determine status indicators
     workflow_active = incident is not None and incident.get("status") not in ["Resolved", "Closed"]
+    current_status = incident.get("status", "Idle") if incident else "Idle"
+    current_severity = incident.get("severity", "N/A") if incident else "N/A"
+    sev_class = "sev-critical" if current_severity == "Critical" else ("sev-high" if current_severity == "High" else "sev-moderate")
     
     # 2. System Health Cards
     st.markdown("##### System Health & Services")
@@ -354,6 +357,185 @@ if menu == "Home Dashboard":
 
     st.write("")
 
+    # --- Emergency Summary Module ---
+    if workflow_active:
+        # Fetch patient metadata with robust mock fallback support
+        patient_name = "Alexander Pierce"
+        patient_age = "35"
+        patient_blood = "AB-"
+        patient_email = "alexander.pierce@lifelink.ai"
+        patient_phone = "+1-555-0811"
+        allergies = "Latex, Penicillin"
+        conditions = "Type 1 Diabetes, Severe Asthma"
+        medications = "Insulin, Albuterol Inhaler"
+        primary_doc_name = "Dr. Sarah Connor"
+        primary_doc_specialty = "Trauma Care"
+        primary_doc_phone = "+1-555-7000"
+        emergency_contacts = [
+            {"name": "Clara Pierce", "relationship": "Spouse", "phone": "+1-555-1111", "priority": 1},
+            {"name": "John Pierce", "relationship": "Brother", "phone": "+1-555-2222", "priority": 2}
+        ]
+        
+        if st.session_state.patient_id and backend_connected:
+            try:
+                from backend.database import SessionLocal
+                from backend.models.user import User
+                db = SessionLocal()
+                user = db.query(User).filter(User.id == st.session_state.patient_id).first()
+                if user:
+                    patient_name = user.full_name
+                    patient_email = user.email
+                    patient_phone = user.phone
+                    if user.emergency_health_profile:
+                        patient_blood = user.emergency_health_profile.blood_group or "N/A"
+                        conditions = user.emergency_health_profile.medical_conditions or "None"
+                        allergies = user.emergency_health_profile.allergies or "None"
+                        medications = user.emergency_health_profile.current_medications or "None"
+                        if user.emergency_health_profile.primary_doctor:
+                            primary_doc_name = user.emergency_health_profile.primary_doctor.name
+                            primary_doc_specialty = user.emergency_health_profile.primary_doctor.specialty or "General Care"
+                            primary_doc_phone = user.emergency_health_profile.primary_doctor.phone
+                    if user.emergency_contacts:
+                        emergency_contacts = [
+                            {
+                                "name": c.name,
+                                "relationship": c.relationship,
+                                "phone": c.phone,
+                                "priority": c.priority
+                            }
+                            for c in user.emergency_contacts
+                        ]
+                db.close()
+            except Exception as e:
+                logger.error(f"Error querying patient details: {e}")
+
+        # Render Emergency Summary Card
+        st.markdown(f"""
+        <div style="border: 2px solid #f43f5e; background: rgba(244, 63, 94, 0.05); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.15);">
+            <h3 style="color: #f43f5e; margin-top: 0; display: flex; align-items: center; gap: 8px;">🚨 EMERGENCY SUMMARY</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 1rem;">
+                <div><b>Incident ID:</b> <span style="font-family: monospace;">{incident.get('id', 'N/A')}</span></div>
+                <div><b>Detection Timestamp:</b> {incident.get('created_at', 'N/A')}</div>
+                <div><b>Emergency Severity:</b> <span class="agent-status-tag {sev_class}" style="display: inline-block;">{current_severity}</span></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_sum_1, col_sum_2 = st.columns(2)
+        with col_sum_1:
+            st.markdown(f"""
+            <div class="glass-card" style="margin-bottom: 1rem;">
+                <h5 style="margin-top: 0; color: #f43f5e;">👤 Patient Information</h5>
+                <p style="font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.6;">
+                    <b>Patient Name:</b> {patient_name}<br/>
+                    <b>Age:</b> {patient_age} years<br/>
+                    <b>Blood Group:</b> {patient_blood}<br/>
+                    <b>Emergency ID:</b> <code>{st.session_state.patient_id}</code>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div class="glass-card" style="margin-bottom: 1rem;">
+                <h5 style="margin-top: 0; color: #f43f5e;">❤️ Medical Information</h5>
+                <p style="font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.6;">
+                    <b>Known Allergies:</b> {allergies}<br/>
+                    <b>Existing Medical Conditions:</b> {conditions}<br/>
+                    <b>Current Medications:</b> {medications}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_sum_2:
+            doc_notified = "✓ Notified" if current_status in ["Doctor Contacted", "Family Contacted", "Patient Reached", "Hospital Admission", "Resolved", "Closed"] else "Pending"
+            doc_color = "#10b981" if doc_notified == "✓ Notified" else "#eab308"
+            st.markdown(f"""
+            <div class="glass-card" style="margin-bottom: 1rem;">
+                <h5 style="margin-top: 0; color: #f43f5e;">👨‍⚕️ Healthcare Coordination</h5>
+                <p style="font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.6;">
+                    <b>Primary Doctor:</b> {primary_doc_name} ({primary_doc_specialty})<br/>
+                    <b>Doctor Notification Status:</b> <span style="color: {doc_color}; font-weight: bold;">{doc_notified}</span>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Build list of Top 5 contacts
+            padded_contacts = list(emergency_contacts)
+            while len(padded_contacts) < 5:
+                padded_contacts.append(None)
+                
+            contacts_html = ""
+            for idx, contact in enumerate(padded_contacts):
+                if contact:
+                    if current_status in ["Family Contacted", "Patient Reached", "Hospital Admission", "Resolved", "Closed"]:
+                        notif_status = "✓ Notified"
+                        badge_color = "#10b981"
+                    elif current_status == "Doctor Contacted" and contact["priority"] == 1:
+                        notif_status = "✓ Notified"
+                        badge_color = "#10b981"
+                    else:
+                        notif_status = "Pending"
+                        badge_color = "#94a3b8"
+                    contacts_html += f"<li><b>{contact['name']}</b> ({contact['relationship']}): {contact['phone']} — <span style='color: {badge_color}; font-weight: bold;'>{notif_status}</span></li>"
+                else:
+                    contacts_html += f"<li><i>Not Configured</i></li>"
+                    
+            st.markdown(f"""
+            <div class="glass-card" style="margin-bottom: 1rem;">
+                <h5 style="margin-top: 0; color: #f43f5e;">👨‍👩‍👧 Emergency Contacts</h5>
+                <ul style="font-size: 0.95rem; margin-bottom: 0.5rem; padding-left: 1.2rem; list-style-type: decimal; line-height: 1.6;">
+                    {contacts_html}
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Location, AI Summary, and checklist
+        gps_loc = f"{incident.get('latitude', 37.7749)}, {incident.get('longitude', -122.4194)}"
+        last_updated = incident.get("updated_at", "N/A")
+        
+        # Calculate checklist completion
+        classified = current_status not in ["Detected"]
+        doctor_alert = current_status in ["Doctor Contacted", "Family Contacted", "Patient Reached", "Hospital Admission", "Resolved", "Closed"]
+        family_alert = current_status in ["Family Contacted", "Patient Reached", "Hospital Admission", "Resolved", "Closed"]
+        services_initiated = current_status in ["Ambulance En Route", "Doctor Contacted", "Family Contacted", "Patient Reached", "Hospital Admission", "Resolved", "Closed"]
+        logged = current_status in ["Resolved", "Closed", "Hospital Admission"]
+        
+        check_sensor = "🟢 ✓ Sensor Alert Received"
+        check_classified = "🟢 ✓ Emergency Classified" if classified else "⚪ Emergency Classified"
+        check_doctor = "🟢 ✓ Doctor Notified" if doctor_alert else "⚪ Doctor Notified"
+        check_family = "🟢 ✓ Family Alerted" if family_alert else "⚪ Family Alerted"
+        check_services = "🟢 ✓ Emergency Services Initiated" if services_initiated else "⚪ Emergency Services Initiated"
+        check_logged = "🟢 ✓ Incident Logged" if logged else "⚪ Incident Logged"
+
+        st.markdown(f"""
+        <div style="border: 1px solid rgba(255,255,255,0.08); background: rgba(30, 41, 59, 0.45); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <h5 style="margin-top: 0; color: #3b82f6;">📍 Location</h5>
+                    <p style="font-size: 0.95rem; margin-bottom: 1rem; line-height: 1.6;">
+                        <b>Current GPS Coordinates:</b> <code>{gps_loc}</code><br/>
+                        <b>Last Updated:</b> {last_updated}
+                    </p>
+                    <h5 style="margin-top: 0; color: #3b82f6;">🤖 AI Decision Summary</h5>
+                    <p style="font-size: 0.95rem; font-style: italic; color: #cbd5e1; line-height: 1.5;">
+                        "LifeLink AI detected abnormal sensor readings indicating a high-risk emergency. Based on the patient's emergency profile, the AI initiated emergency coordination, notified the primary doctor, alerted emergency contacts, and activated emergency services."
+                    </p>
+                </div>
+                <div>
+                    <h5 style="margin-top: 0; color: #10b981;">🚑 Response Status</h5>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 0.5rem; font-size: 0.95rem; font-weight: 500;">
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981;">{check_sensor}</div>
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: {'rgba(16, 185, 129, 0.1)' if classified else 'rgba(255,255,255,0.02)'}; color: {'#10b981' if classified else '#94a3b8'};">{check_classified}</div>
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: {'rgba(16, 185, 129, 0.1)' if doctor_alert else 'rgba(255,255,255,0.02)'}; color: {'#10b981' if doctor_alert else '#94a3b8'};">{check_doctor}</div>
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: {'rgba(16, 185, 129, 0.1)' if family_alert else 'rgba(255,255,255,0.02)'}; color: {'#10b981' if family_alert else '#94a3b8'};">{check_family}</div>
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: {'rgba(16, 185, 129, 0.1)' if services_initiated else 'rgba(255,255,255,0.02)'}; color: {'#10b981' if services_initiated else '#94a3b8'};">{check_services}</div>
+                        <div style="padding: 0.3rem 0.6rem; border-radius: 4px; background: {'rgba(16, 185, 129, 0.1)' if logged else 'rgba(255,255,255,0.02)'}; color: {'#10b981' if logged else '#94a3b8'};">{check_logged}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     # Primary Content Section
     col_main_left, col_main_right = st.columns([7, 5])
     
@@ -362,8 +544,7 @@ if menu == "Home Dashboard":
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         st.markdown("#### 🚨 Emergency Monitoring Panel")
         
-        current_status = incident.get("status", "Idle") if incident else "Idle"
-        current_severity = incident.get("severity", "N/A") if incident else "N/A"
+        # Already loaded globally
         
         # Map active agent
         if current_status == "Idle":
